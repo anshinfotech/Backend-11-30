@@ -22,6 +22,8 @@ const userSchema = mongoose.Schema({
     type: Boolean,
     default: false,
   },
+
+  token : {type :String , default : null}
 });
 
 const userModel = mongoose.model("Users", userSchema);

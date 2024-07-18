@@ -1,6 +1,8 @@
 const nodemailer = require("nodemailer");
 const userModel = require("../Model/userModel");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const SECRET_KEY = "123654slkjfl;asdjkflkadsjf675347235";
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -112,34 +114,111 @@ let deletedUser = async (req, res) => {
   }
 };
 
-
 let updateUser = async (req, res) => {
-    try {
-      let { id } = req.params;
-      let {newusername} = req.body
-  
-      const user = await userModel.findById(id);
-      console.log(user);
-  
-      if (!user) {
-        res.status(404).json({ message: "User not found" });
-      } else {
-        const updatedUser = await userModel.findByIdAndUpdate(id,{
-            username:newusername,
+  try {
+    let { id } = req.params;
+    let { newusername } = req.body;
+
+    const user = await userModel.findById(id);
+    console.log(user);
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+    } else {
+      const updatedUser = await userModel.findByIdAndUpdate(
+        id,
+        {
+          username: newusername,
         },
         {
-            new: true,
+          new: true,
         }
-    
-    );
-        res.status(200).json({ updatedUser });
-      }
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: error.message, message: "Something went wrong" });
+      );
+      res.status(200).json({ updatedUser });
     }
-  };
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: error.message, message: "Something went wrong" });
+  }
+};
+
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const isUser = await userModel.findOne({ email });
+
+    if (!isUser) {
+      return res.status(400).json({
+        message: "No user found with this email",
+      });
+    }
+
+    const correctPass = await bcrypt.compare(password, isUser.password);
+
+    if (!correctPass) {
+      return res.status(400).json({
+        message: "Incorrect password",
+      });
+    }
+
+    const token = await jwt.sign({ userID: isUser._id }, SECRET_KEY);
+    isUser.token = token;
+    isUser.save();
+
+    res.cookie("userToken", token, {
+      maxAge: 1000 * 60 * 60,
+      httpOnly: true,
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      User: isUser,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: error.message, message: "Failed to login user" });
+  }
+};
+
+const logoutUser = async(req , res) => {
+  try {
+    const {userToken} = req.cookies;
+
+    const user = await userModel.findOne({token: userToken});
+
+    if(!user){
+      return res.status(400).json({
+        message: "No user found!",
+      });
+    }
+
+    user.token = null;
+    await user.save();
+
+    res.clearCookie("userToken");
+
+    res.status(200).json({
+      message: "Logout successful",
+    })
+    
+  } catch (error) {
+    res
+    .status(500)
+    .json({ error: error.message, message: "Failed to Logout user" });
+  }
+}
 
 
-module.exports = { newdata, alldata, verifyUser, singleuser, deletedUser,updateUser };
+module.exports = {
+  newdata,
+  alldata,
+  verifyUser,
+  singleuser,
+  deletedUser,
+  updateUser,
+  loginUser,
+  logoutUser,
+};
