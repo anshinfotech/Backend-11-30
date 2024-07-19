@@ -36,7 +36,7 @@ let newdata = async (req, res) => {
       phone,
       otp,
     });
-    res.status(200).json({ message: "Data submitted succesfuly", newdata });
+    res.status(200).json({ message: "Data submitted succesfuly", User : newdata });
   } catch (error) {
     res
       .status(500)
